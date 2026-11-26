@@ -679,7 +679,7 @@ function Logo() {
   return <div className="logo"><img src="/assets/inhousegym-logo.png" alt="InHouseGym"/></div>;
 }
 
-function Header({page, setPage, setShopCategory, cartCount, user, setShowAuth, setShowCart, onLogout, onNavigate}) {
+function Header({page, setPage, setShopCategory, cartCount, user, setShowAuth, setShowCart, onLogout, onNavigate, products = []}) {
   const [mobile,setMobile]=useState(false);
   const [accountOpen,setAccountOpen]=useState(false);
   const accountRef = useRef(null);
@@ -703,10 +703,36 @@ useEffect(() => {
 }, [accountOpen]);
   return <header className="header">
     <div className="header-inner">
-      <button className="mobile-menu" onClick={()=>setMobile(!mobile)}><Icon name={mobile?"close":"menu"}/></button>
+      <button className="mobile-menu" type="button" aria-label={mobile ? "Close menu" : "Open menu"} aria-expanded={mobile} onClick={()=>setMobile(!mobile)}><Icon name={mobile?"close":"menu"}/></button>
       <button className="logo-btn" onClick={()=>{(onNavigate||setPage)("home")}}><Logo/></button>
       <nav className={mobile?"nav open":"nav"}>
         {[['home','Home'],['how','How It Works'],['about','About'],['contact','Contact Us']].map(([id,label])=><button key={id} className={page===id?"active":""} onClick={()=>{(onNavigate||setPage)(id);setMobile(false)}}>{label}</button>)}
+      <div className="mobile-category-links">
+  <div className="mobile-category-title">
+    SHOP BY CATEGORY
+  </div>
+
+  <button onClick={()=>{
+    setShopCategory("All Equipment");
+    (onNavigate||setPage)("shop");
+    setMobile(false);
+  }}>
+    All Equipment
+  </button>
+
+  {[...new Set(products.map(p=>p.category).filter(Boolean))].map(category=>(
+    <button
+      key={category}
+      onClick={()=>{
+        setShopCategory(category);
+        (onNavigate||setPage)("shop");
+        setMobile(false);
+      }}
+    >
+      {category}
+    </button>
+  ))}
+</div>
       </nav>
       <div className="header-actions">
         <button className="icon-btn cart-btn" onClick={()=>setShowCart(true)}><Icon name="cart"/>{cartCount>0&&<em>{cartCount}</em>}</button>
@@ -1135,7 +1161,7 @@ function Home({setPage,onView,onAdd,onCategory,products,offer,returnPolicy}) {
   </main>;
 }
 
-function Shop({onView,onAdd,initialCategory="All Equipment",products,offer}) {
+function Shop({onView,onAdd,onCategoryChange,initialCategory="All Equipment",products,offer}) {
   const [cat,setCat]=useState(initialCategory), [weight,setWeight]=useState("all");
   useEffect(()=>{setCat(initialCategory);setWeight("all")},[initialCategory]);
   const cats=[...new Set(products.map(p=>p.category).filter(Boolean))];
@@ -1168,7 +1194,7 @@ const weightGroups=[
   return <main className="page shop-page">
     <div className="shop-top"><div><span className="crumb">Home / Shop</span><h1>{cat==="All Equipment"?"All Equipment":cat}</h1></div></div>
     {cat==="All Equipment" && <div className="shop-category-tabs">
-      {cats.map((c,i)=><button key={c} className={cat===c?"selected":""} onClick={()=>{setCat(c);setWeight("all")}}><span>0{i+1}</span>{c}<Icon name="arrow" size={15}/></button>)}
+      {cats.map((c,i)=><button key={c} className={cat===c?"selected":""} onClick={()=>{setCat(c);setWeight("all");onCategoryChange?.(c)}}><span>0{i+1}</span>{c}<Icon name="arrow" size={15}/></button>)}
     </div>}
     <div className="shop-layout single-shop-layout">
       <section><div className="results-row"><span>{list.length} equipment</span></div><div className="product-grid three">{list.map(p=><ProductCard key={p.id} p={p} onView={onView} onAdd={onAdd} offer={offer} viewOnly/>)}</div></section>
@@ -1407,7 +1433,7 @@ function ProductDetail({p,onBack,onAdd,onRentNow,offer}) {
           {/* DELIVERY INFO PILLS */}
           <div className="delivery-pills">
             <span className="delivery-pill cod">💵 COD</span>
-            <span className="delivery-pill ncr">📍 Delivery Only in NCR Regions</span>
+            <span className="delivery-pill ncr">📍 Free Delivery in NCR Regions</span>
             <span className="delivery-pill fast">🚚 Delivery Within 48 Hours</span>
 
           </div>
@@ -1977,6 +2003,7 @@ function Checkout({items,onClose,onSuccess}) {
           {coupon&&<div style={{display:"flex",justifyContent:"space-between",gap:"20px"}}><span>Coupon Discount ({coupon.code})</span><span style={{color:"#16a34a",fontWeight:600}}>{money(discountAmount)}</span></div>}
           <div style={{display:"flex",justifyContent:"space-between",gap:"20px"}}><span>GST (18%)</span><span>+ {money(gstAmount)}</span></div>
           <div style={{display:"flex",justifyContent:"space-between",gap:"20px",alignItems:"baseline",borderTop:"1px solid #ddd",paddingTop:"6px"}}><span style={{color:"#222",fontWeight:"600"}}>Total Amount</span><strong style={{color:"#16a34a",fontSize:"17px"}}>{money(grandTotal)}</strong></div>
+          <div style={{marginTop:"4px",display:"inline-flex",alignItems:"center",gap:"6px",background:"#e7f6ec",color:"#15803d",border:"1px solid #bbf7d0",borderRadius:"999px",padding:"4px 10px",fontSize:"12px",fontWeight:"600",width:"fit-content"}}>🚚 Free delivery in NCR regions</div>
         </div>
 
         <button type="button" className="back-checkout-btn" onClick={onClose}>← Back</button>
@@ -2102,7 +2129,7 @@ function How() {
       <h1>How It <span>Works</span></h1>
       <p>Get quality gym equipment at your doorstep in four easy steps.</p>
     </div>
-    <div className="how-simple-timeline">
+    <div className="how-simple-timeline" id="how-renting">
       {steps.map(([no, title, text]) => (
         <div className="how-simple-step" key={no}>
           <span className="how-simple-no">{no}</span>
@@ -2113,6 +2140,21 @@ function How() {
           </div>
         </div>
       ))}
+    </div>
+    <div className="how-info" id="rental-duration">
+      <h2>Rental Duration</h2>
+      <p>Rent equipment for 1, 3 or 6 months — pick the period that suits you. The price you see is the monthly rent, and the total is worked out for the months you choose. When your rental ends, simply return the equipment.</p>
+    </div>
+    <div className="how-info" id="equipment-care">
+      <h2>Equipment Care</h2>
+      <p>Keep the equipment indoors in a dry place and wipe it down after every use. Please do not exceed the max user weight shown on the product page. If anything stops working, contact us — please do not try to repair it yourself.</p>
+    </div>
+    <div className="how-info" id="faqs">
+      <h2>FAQs</h2>
+      <details className="how-faq"><summary>How do I rent equipment?</summary><p>Pick the equipment you need, choose a rental duration, and check out. We deliver it to your home.</p></details>
+      <details className="how-faq"><summary>Is delivery free?</summary><p>Yes — home delivery is free, and we usually deliver within 48 hours.</p></details>
+      <details className="how-faq"><summary>How do I pay?</summary><p>Cash on Delivery — you pay at your door when the equipment arrives.</p></details>
+      <details className="how-faq"><summary>What if I want to return the equipment?</summary><p>You can return it when your rental ends. A handling charge of only ₹500 applies on returns. No hidden fees.</p></details>
     </div>
   </main>;
 }
@@ -3677,9 +3719,13 @@ useEffect(()=>{
   // so pressing Back goes to the site's previous page instead of leaving the site
   // (works on laptop and mobile).
   const catalogRef=useRef(null);
+  const productReturnRef=useRef(null);
+  const restoreScrollRef=useRef(null);
+  const selectedRef=useRef(null);
   const isFirstNav=useRef(true);
   const navFromPop=useRef(false);
   useEffect(()=>{catalogRef.current=catalog;},[catalog]);
+  useEffect(()=>{selectedRef.current=selected;},[selected]);
   useEffect(()=>{
     const firstPage=(page==="admin"||page==="admin-login")?"home":page;
     try{window.history.replaceState({page:firstPage,productId:null},"");}catch(e){}
@@ -3699,15 +3745,37 @@ useEffect(()=>{
         if(st.productId){
           const p=(catalogRef.current||[]).find(x=>String(x.id)===String(st.productId));
           setSelected(p||null);
-        }else{setSelected(null);}
-      }else{setSelected(null);setPage("home");}
+        }else{
+          if(selectedRef.current && productReturnRef.current){
+            setShopCategory(productReturnRef.current.category || "All Equipment");
+            restoreScrollRef.current=productReturnRef.current.scrollY || 0;
+          }
+          setSelected(null);
+        }
+      }else{
+        if(selectedRef.current && productReturnRef.current){
+          setShopCategory(productReturnRef.current.category || "All Equipment");
+          restoreScrollRef.current=productReturnRef.current.scrollY || 0;
+        }
+        setSelected(null);setPage("home");
+      }
     };
     window.addEventListener("popstate",onPopState);
     return()=>window.removeEventListener("popstate",onPopState);
   },[]);
   useEffect(() => {
-  window.scrollTo(0, 0);
-}, [page, selected]);
+    if (selected) {
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (restoreScrollRef.current !== null) {
+      const y = restoreScrollRef.current;
+      restoreScrollRef.current = null;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [page, selected]);
 
   useEffect(() => {
   const handleProductsUpdated = (event) => {
@@ -3774,7 +3842,8 @@ useEffect(()=>{
     const key=p.id+"-"+duration;
     const item={...p,key,qty:quantity,duration,rentalMonths:duration,rentalPrice:Number(p.rentalPrice || (duration===1 ? p.price : duration===3 ? p.price3Month || p.price*3 : p.price6Month || p.price*6))};
     setCheckoutItems([item]);
-    setSelected(null);
+    // Keep the selected equipment detail mounted behind checkout.
+    // If the customer presses Back or closes checkout, the same equipment stays open.
     setShowCart(false);
     setCheckout(true);
   };
@@ -3877,15 +3946,38 @@ useEffect(()=>{
   setCart([]);
   setCheckout(false);
   setShowCart(false);
+  setSelected(null);
   setOrderDone(finalOrderNo);
 };
+  const openProduct=(product)=>{
+    productReturnRef.current={page,category:shopCategory,scrollY:window.scrollY};
+    restoreScrollRef.current=null;
+    setSelected(product);
+  };
+  const backToProductList=()=>{
+    // Return through the in-app history so the original category and scroll position are restored.
+    if(window.history.state && window.history.state.productId){
+      window.history.back();
+      return;
+    }
+    const origin=productReturnRef.current;
+    setSelected(null);
+    if(origin){
+      setPage(origin.page);
+      setShopCategory(origin.category || "All Equipment");
+      restoreScrollRef.current=origin.scrollY || 0;
+    }else{
+      setPage("shop");
+    }
+  };
   const goCategory=(category)=>{setSelected(null);setShopCategory(category);setPage("shop")};
+  const goHowSection=(id)=>{setPage("how");setTimeout(()=>{document.getElementById(id)?.scrollIntoView({behavior:"smooth",block:"start"})},100)};
   const navigate=(target)=>{setSelected(null);setPage(target)};
   const content =
 page==="home"
 ? <Home
     setPage={setPage}
-    onView={setSelected}
+    onView={openProduct}
     onAdd={add}
     onCategory={goCategory}
     products={catalog.filter(p => p.enabled !== false)}
@@ -3895,22 +3987,23 @@ page==="home"
 : page==="shop"
 ? <Shop
     initialCategory={shopCategory}
-    onView={setSelected}
+    onView={openProduct}
+    onCategoryChange={setShopCategory}
     onAdd={add}
     products={catalog.filter(p => p.enabled !== false)}
     offer={offer}
-  />:page==="shop"?<Shop initialCategory={shopCategory} onView={setSelected} onAdd={add} products={catalog}/>:page==="how"?<How/>:page==="about"?<About/>:page==="contact"?<Contact/>:page==="admin-login"?<AdminLoginPage onLogin={adminLogin} onBack={()=>setPage("home")}/>:page==="admin"&&admin?<AdminDashboard products={catalog} onSaveProducts={setCatalog} onDeleteProduct={deleteProduct} offer={offer}
+  />:page==="shop"?<Shop initialCategory={shopCategory} onView={openProduct} onCategoryChange={setShopCategory} onAdd={add} products={catalog}/>:page==="how"?<How/>:page==="about"?<About/>:page==="contact"?<Contact/>:page==="admin-login"?<AdminLoginPage onLogin={adminLogin} onBack={()=>setPage("home")}/>:page==="admin"&&admin?<AdminDashboard products={catalog} onSaveProducts={setCatalog} onDeleteProduct={deleteProduct} offer={offer}
   setOffer={setOffer} returnPolicy={returnPolicy} setReturnPolicy={setReturnPolicy} onLogout={()=>{setAdmin(null);setPage("home")}}/>:<Rentals user={user} setPage={setPage} onLogout={()=>{setUser(null);setPage("home")}}/>;
   if(page==="admin"){
     if(admin) return <AdminDashboard products={catalog} onSaveProducts={setCatalog}  onDeleteProduct={deleteProduct} offer={offer}
   setOffer={setOffer} returnPolicy={returnPolicy} setReturnPolicy={setReturnPolicy} onLogout={()=>{setAdmin(null);setPage("home");window.history.replaceState({},"","/")}}/>;
     return <AdminLoginPage onLogin={adminLogin} onBack={()=>{setPage("home");window.history.replaceState({},"","/")}}/>;
   }
-  return <><Header page={page} setPage={setPage} onNavigate={navigate} setShopCategory={setShopCategory} cartCount={cart.reduce((s,x)=>s+x.qty,0)} user={user} setShowAuth={(mode)=>{setAuthPurpose(null);setAuth(mode)}} setShowCart={setShowCart} onLogout={()=>{setUser(null);navigate("home")}}/>{(page!=="admin"&&page!=="admin-login")&&<WhatsAppChat/>}
+  return <><Header page={page} setPage={setPage} onNavigate={navigate} setShopCategory={setShopCategory}  products={catalog.filter(p => p.enabled !== false)} cartCount={cart.reduce((s,x)=>s+x.qty,0)} user={user} setShowAuth={(mode)=>{setAuthPurpose(null);setAuth(mode)}} setShowCart={setShowCart} onLogout={()=>{setUser(null);navigate("home")}}/>{(page!=="admin"&&page!=="admin-login")&&<WhatsAppChat/>}
 {selected ?
   <ProductDetail
     p={selected}
-    onBack={()=>{setSelected(null);setPage("shop")}}
+    onBack={backToProductList}
     onAdd={add}
     onRentNow={rentNow}
     offer={offer}
@@ -3958,13 +4051,32 @@ page==="home"
             <span><b>◉</b> 24/7<br/>Support</span>
           </div>
 
-          <div className="socials">
-            <span>◎</span>
-            <span>f</span>
-            <span>𝕏</span>
-            <span>▶</span>
-            <span>in</span>
-          </div>
+          
+<div className="socials">
+  {/* YouTube */}
+  <a href="https://www.youtube.com/@inhousegym5544"
+     target="_blank" rel="noopener noreferrer">
+    ▶
+  </a>
+
+  {/* Instagram */}
+  <a href="https://www.instagram.com/inhouse.gym/"
+     target="_blank" rel="noopener noreferrer">
+    <svg viewBox="0 0 24 24" width="21" height="21"
+         fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="18" height="18" rx="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+    </svg>
+  </a>
+
+  {/* Facebook */}
+  <a href="https://www.facebook.com/share/14uRXmAYE24/"
+     target="_blank" rel="noopener noreferrer">
+    f
+  </a>
+</div>
+
         </div>
 
         <div className="footer-col">
@@ -3976,7 +4088,7 @@ page==="home"
           }}>Shop</button>
           <button onClick={()=>setPage("how")}>How It Works</button>
           <button onClick={()=>setPage("about")}>About Us</button>
-          <button>Contact</button>
+          <button onClick={()=>setPage("contact")}>Contact</button>
         </div>
 
         <div className="footer-col">
@@ -3997,10 +4109,10 @@ page==="home"
 
         <div className="footer-col">
           <h4>RENTAL INFO</h4>
-          <button>How Renting Works</button>
-          <button>Rental Duration</button>
-          <button>Equipment Care</button>
-          <button>FAQs</button>
+          <button onClick={()=>goHowSection("how-renting")}>How Renting Works</button>
+          <button onClick={()=>goHowSection("rental-duration")}>Rental Duration</button>
+          <button onClick={()=>goHowSection("equipment-care")}>Equipment Care</button>
+          <button onClick={()=>goHowSection("faqs")}>FAQs</button>
           
         </div>
 

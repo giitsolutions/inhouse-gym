@@ -1,53 +1,55 @@
 InHouseGym — Admin Dashboard Cross-Device Fix
-Base: tumhari InHouseGym_Brevo_Only-2.zip (isliye isme BMI calculator aur pincode toast nahi hain — wo master BMI zip me hain, ye fix us base par nahi bana hai, pehle batana zaroori tha)
+Base: your InHouseGym_Brevo_Only-2.zip (that's why this doesn't have the BMI calculator and pincode toast — those are in the master BMI zip; this fix was not built on that base, it was important to say this first)
 Date: 2026-10-27
 
-PROBLEM KYA THA
-- User signup aur rent ki info sirf us browser ke localStorage me save hoti thi.
-- Admin dashboard bhi wahi localStorage padhta tha.
-- Isliye jis laptop par login/rent hua, usi laptop ke admin me data dikhta tha, dusre laptop/mobile par nahi.
+WHAT WAS THE PROBLEM
 
-FIX KYA HAI
-Backend (Render + MongoDB) me users aur rentals ke naye API banaye hain:
-- POST /api/auth/register, POST /api/auth/login, POST /api/auth/reset-password
-- GET /api/users, DELETE /api/users/:id, POST /api/users/migrate
-- GET /api/rentals (?email=...), POST /api/rentals, POST /api/rentals/migrate, PUT /api/rentals/:id, DELETE /api/rentals/:id
-- Password ab bcrypt hash me save hota hai, seedha nahi.
-- Users aur rentals ki list sirf admin key se milti hai.
+User signup and rental info was saved only in that browser's localStorage.
+The admin dashboard also read the same localStorage.
+So the data only showed in the admin on the laptop where the login/rent happened, not on another laptop/mobile.
+WHAT IS THE FIX
+New APIs for users and rentals have been built in the backend (Render + MongoDB):
 
-Frontend (src/main.jsx) me ye badla hai:
-- Signup: backend par register bhi hota hai, local save bhi rehta hai (fallback).
-- Login: backend login pehle try hota hai, phir local fallback (purane account ke liye).
-- Forgot password: backend user bhi dhoondha jata hai, aur reset ke baad backend password bhi badalta hai.
-- Checkout: rental backend par bhi save hota hai.
-- My Rentals: backend se us customer ke rentals laaye jate hain.
-- Cancel: backend par status bhi Cancelled hota hai.
-- Admin dashboard: khulte hi backend se users aur rentals laata hai, aur laptop ke purane local data ko backend par migrate kar deta hai (ek baar, duplicate nahi banata).
-- Admin delete: backend se bhi delete hota hai.
+POST /api/auth/register, POST /api/auth/login, POST /api/auth/reset-password
+GET /api/users, DELETE /api/users/:id, POST /api/users/migrate
+GET /api/rentals (?email=...), POST /api/rentals, POST /api/rentals/migrate, PUT /api/rentals/:id, DELETE /api/rentals/:id
+Passwords are now saved as bcrypt hashes, not in plain text.
+The users and rentals lists are only available with the admin key.
+These are the changes in the frontend (src/main.jsx):
 
-DEPLOY ORDER — ISI ORDER ME KARNA, WARNA ADMIN KHAALI DIKHEGA
-1. BACKEND PEHLE:
-   - InHouseGym_Backend_AdminFix.zip ke files ko GitHub repo giitsolutions/inhouse-gym-backend- me push karo (aakhir me - hai, mat bhoolna).
-   - .env kabhi push mat karo.
-   - Render par inhouse-gym-backend service khud deploy ho jayegi. Deploy complete hone tak ruko.
-   - Check: https://inhouse-gym-backend.onrender.com/api/health par {"ok":true} aana chahiye.
-   - Koi naya env var nahi chahiye. bcryptjs package.json me hai, Render khud install karega.
-   - Render free tier 15 min idle ke baad sota hai, pehli request par 30-50 sec lag sakte hain.
+Signup: it also registers on the backend, and the local save also remains (fallback).
+Login: backend login is tried first, then the local fallback (for old accounts).
+Forgot password: the backend user is also searched, and after the reset the backend password also changes.
+Checkout: the rental is also saved on the backend.
+My Rentals: that customer's rentals are fetched from the backend.
+Cancel: the status also becomes Cancelled on the backend.
+Admin dashboard: as soon as it opens, it fetches users and rentals from the backend, and migrates the laptop's old local data to the backend (once; it doesn't create duplicates).
+Admin delete: it also deletes from the backend.
+DEPLOY ORDER — DO IT IN THIS ORDER, OTHERWISE ADMIN WILL LOOK EMPTY
 
-2. FRONTEND BAAD ME:
-   - Is zip ke dist folder ko Hostinger par upload karo (jaise pehle karti ho), YA laptop par npm run dev se chalao.
-   - Phir apne laptop par admin dashboard kholo — pehli baar me purana local data backend par migrate ho jayega.
-   - Uske baad dusre laptop/mobile par admin kholo aur hard refresh karo — wahi users aur rentals dikhne chahiye.
+1. BACKEND FIRST:
 
-3. TEST KARNA (zaroori)
-   - Laptop par ek naya test user signup karo, ek test rent karo.
-   - Mobile/dusre laptop par admin kholo — test user aur test rent dono dikhne chahiye.
-   - Mobile par us test user se login karo — login hona chahiye, aur My Rentals me rent dikhna chahiye.
-   - Test data ko admin se delete kar dena baad me, taaki asli data saaf rahe.
+Push the files from InHouseGym_Backend_AdminFix.zip to the GitHub repo giitsolutions/inhouse-gym-backend- (there's a hyphen at the end, don't forget it).
+Never push .env.
+The inhouse-gym-backend service on Render will deploy on its own. Wait until the deploy completes.
+Check: https://inhouse-gym-backend.onrender.com/api/health should return {"ok":true}.
+No new env var is needed. bcryptjs is in package.json, Render will install it itself.
+Render's free tier sleeps after 15 min idle; the first request can take 30–50 sec.
+2. FRONTEND AFTERWARDS:
 
-DHYAAN RAKHNE WALI BAATEIN
-- Is zip ko public GitHub repo me push mat karo, kyunki is base me admin key code me hi hai (ye base ki purani baat hai, is fix ne usko nahi badla hai, taaki tumhara abhi ka admin kaam na toote).
-- Aadhaar/PAN document ki file ab backend par bhi save hoti hai (pehle sirf localStorage me thi). Admin key kisi ko mat dena, warna wo users/rentals ki list dekh sakta hai.
-- Agar backend down ho ya Render so raha ho, to site local data se chalti rahegi (fallback), aur admin migration baad me purana data backend par le jayega. Iska matlab hai: backend deploy complete hone se pehle frontend upload karne par admin ko purana data backend par nahi milega, isliye order upar wala hi rakho.
-- Purane users jo sirf kisi aur ke laptop/mobile ke browser me bane the, wo apne aap backend par nahi aayenge — unko usi device se admin kholkar migrate karna hoga, ya dobara signup karna hoga.
-- Ye fix sirf users aur rentals ke liye hai. Products aur offer pehle se backend se sync hote the, unme koi change nahi hai.
+Upload this zip's dist folder to Hostinger (as you did before), OR run it on your laptop with npm run dev.
+Then open the admin dashboard on your laptop — the first time, the old local data will migrate to the backend.
+After that, open admin on another laptop/mobile and hard refresh — the same users and rentals should show.
+3. TESTING (important)
+
+On the laptop, sign up a new test user and make a test rental.
+Open admin on mobile/another laptop — the test user and the test rental should both show.
+Log in on mobile with that test user — login should work, and the rental should show in My Rentals.
+Delete the test data from admin afterwards, so the real data stays clean.
+THINGS TO KEEP IN MIND
+
+Don't push this zip to a public GitHub repo, because in this base the admin key is in the code itself (that's an old thing about this base; this fix didn't change it, so that your current admin work doesn't break).
+The Aadhaar/PAN document file is now also saved on the backend (earlier it was only in localStorage). Don't give the admin key to anyone, otherwise they can see the users/rentals list.
+If the backend is down or Render is asleep, the site will keep running on local data (fallback), and admin migration will later take the old data to the backend. This means: if you upload the frontend before the backend deploy completes, admin won't find the old data on the backend — so keep the order given above.
+Old users who were created only in the browser of someone else's laptop/mobile won't come to the backend by themselves — they'll have to be migrated by opening admin from that same device, or they'll have to sign up again.
+This fix is only for users and rentals. Products and offer already synced from the backend; there is no change in them.
